@@ -3,37 +3,45 @@
 namespace App\Http\Middleware;
 
 use App\Models\User;
+use App\Models\UserSession;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
+use Carbon\Carbon;
 
 class TokenAuth
 {
-    /**
-     * Handle an incoming request.
-     */
     public function handle(Request $request, Closure $next): Response
     {
-        $header = $request->header('Authorization');
-
-        if (! $header || ! str_starts_with($header, 'Bearer ')) {
-            return response()->json(['message' => 'Unauthenticated'], 401);
+        $token = $request->bearerToken();
+        if (! $token) {
+            return response()->json(['message' => 'Unauthenticated', 'requires_new_token' => true], 401);
         }
 
-        $decoded = base64_decode(substr($header, 7));
-        if (! $decoded || ! str_contains($decoded, '|')) {
-            return response()->json(['message' => 'Unauthenticated'], 401);
+        try {
+            $payload = JWT::decode($token, new Key(env('APP_KEY'), 'HS256'));
+        } catch (\Firebase\JWT\ExpiredException $e) {
+            return response()->json(['message' => 'Token expired', 'requires_new_token' => true], 401);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Unauthenticated', 'requires_new_token' => true], 401);
         }
 
-        [$id, $hash] = explode('|', $decoded, 2);
-        $user = User::find($id);
+        $session = UserSession::where('token', $token)->where('estado', 1)->first();
+        if (! $session) {
+            return response()->json(['message' => 'Unauthenticated', 'requires_new_token' => true], 401);
+        }
+
+        if (Carbon::parse($session->fecha_creacion)->addHour()->isPast()) {
+            $session->estado = 0;
+            $session->save();
+            return response()->json(['message' => 'Token expired', 'requires_new_token' => true], 401);
+        }
+
+        $user = User::find($payload->sub);
         if (! $user) {
-            return response()->json(['message' => 'Unauthenticated'], 401);
-        }
-
-        $expected = hash_hmac('sha256', $user->email, env('API_KEY'));
-        if (! hash_equals($expected, $hash)) {
-            return response()->json(['message' => 'Unauthenticated'], 401);
+            return response()->json(['message' => 'Unauthenticated', 'requires_new_token' => true], 401);
         }
 
         $request->setUserResolver(fn () => $user);
