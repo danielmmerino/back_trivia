@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Carbon\Carbon;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -71,6 +72,47 @@ class AuthController extends Controller
         }
 
         return response()->json((array) $result[0]);
+    }
+
+    public function socialLogin(Request $request)
+    {
+        try {
+            $data = $request->validate([
+                'email' => ['required', 'email'],
+            ]);
+
+            $user = User::where('correo_usuario', $data['email'])->first();
+
+            if (! $user) {
+                $user = new User();
+                $user->uuid = (string) Str::uuid();
+                $user->nombre_usario = $data['email'];
+                $user->correo_usuario = $data['email'];
+                $user->clave = '';
+                $user->estado_usuario = 1;
+                $user->fecha_creacion = Carbon::now();
+                $user->fecha_actualizacion = Carbon::now();
+                $user->save();
+            }
+
+            $payload = [
+                'sub' => $user->uuid,
+                'iat' => time(),
+                'exp' => time() + 3600,
+            ];
+            $token = JWT::encode($payload, env('APP_KEY'), 'HS256');
+
+            UserSession::create([
+                'uuid_usuario' => $user->uuid,
+                'token' => $token,
+                'fecha_creacion' => Carbon::now(),
+                'estado' => 1,
+            ]);
+
+            return response()->json(['token' => $token]);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 
     public function refreshToken(Request $request)
