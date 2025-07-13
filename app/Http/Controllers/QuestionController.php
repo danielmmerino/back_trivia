@@ -53,4 +53,44 @@ class QuestionController extends Controller
 
         return response()->json($resultado);
     }
+
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'pregunta' => 'required|string',
+            'id_categoria' => 'required|integer',
+            'id_dificultad' => 'required|integer',
+            'opciones' => 'required|array|size:4',
+            'opciones.*.opcion' => 'required|string',
+            'opciones.*.esCorrecta' => 'required|in:true,false',
+        ]);
+
+        $hasCorrect = collect($data['opciones'])->contains(function ($op) {
+            return $op['esCorrecta'] === 'true';
+        });
+
+        if (! $hasCorrect) {
+            return response()->json(['message' => 'Debe existir al menos una respuesta correcta'], 400);
+        }
+
+        $preguntaId = DB::table('juego_preguntas')->insertGetId([
+            'categoria' => $data['id_categoria'],
+            'descripcion' => $data['pregunta'],
+            'id_dificultad' => $data['id_dificultad'],
+            'estado' => 1,
+            'fecha_creacion' => now(),
+        ]);
+
+        foreach ($data['opciones'] as $opcion) {
+            DB::table('juego_opciones')->insert([
+                'id_pregunta' => $preguntaId,
+                'descripcion' => $opcion['opcion'],
+                'esCorrecto' => $opcion['esCorrecta'] === 'true',
+                'estado' => 1,
+                'fecha_creacion' => now(),
+            ]);
+        }
+
+        return response()->json(['message' => 'Pregunta creada'], 201);
+    }
 }

@@ -24,6 +24,9 @@ Route::get('/niveles', [LevelController::class, 'index'])
 Route::post('/preguntas', [QuestionController::class, 'index'])
     ->middleware(TokenAuth::class);
 
+Route::post('/crear_pregunta', [QuestionController::class, 'store'])
+    ->middleware(TokenAuth::class);
+
 Route::middleware(TokenAuth::class)->group(function () {
     Route::get('/user', function (Request $request) {
         return response()->json($request->user());
