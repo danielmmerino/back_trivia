@@ -31,7 +31,7 @@ class TokenAuth
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        $expected = hash_hmac('sha256', $user->email, env('API_KEY'));
+        $expected = hash_hmac('sha256', $user->correo_usuario, env('API_KEY'));
         if (! hash_equals($expected, $hash)) {
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
