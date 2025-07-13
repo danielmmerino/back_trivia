@@ -63,5 +63,5 @@ The Laravel framework is open-sourced software licensed under the [MIT license](
 
 Set `API_KEY` in your `.env` file.
 
-Use `POST /api/login` with `email` and `password` to obtain a token.
+Use `POST /api/login` with `email` and `password` and include the `X-API-Key` header to obtain a token.
 Send the token in the `Authorization: Bearer <token>` header for subsequent API requests.
