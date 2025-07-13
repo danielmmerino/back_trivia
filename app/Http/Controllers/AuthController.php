@@ -9,24 +9,35 @@ use Illuminate\Support\Facades\DB;
 
 class AuthController extends Controller
 {
-    public function login(Request $request)
-    {
+public function login(Request $request)
+{
+    try {
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required'],
         ]);
 
-        $user = User::where('email', $credentials['email'])->first();
+        // Buscar por el campo correcto
+        $user = \App\Models\User::where('correo_usuario', $credentials['email'])->first();
 
-        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
-            return response()->json(['message' => 'Invalid credentials'], 401);
+        if (! $user) {
+            return response()->json(['message' => 'Usuario no encontrado'], 404);
         }
 
-        $hash = hash_hmac('sha256', $user->email, env('API_KEY'));
-        $token = base64_encode($user->id.'|'.$hash);
+        // Comparar correctamente con Hash
+        if (! \Illuminate\Support\Facades\Hash::check($credentials['password'], $user->clave)) {
+            return response()->json(['message' => 'Contraseña incorrecta'], 401);
+        }
+
+        // Generar token base (puedes mejorar luego con JWT)
+        $hash = hash_hmac('sha256', $user->correo_usuario, env('API_KEY', 'default'));
+        $token = base64_encode($user->uuid . '|' . $hash);
 
         return response()->json(['token' => $token]);
+    } catch (\Throwable $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
     }
+}
 
     public function loginUsuarios(Request $request)
     {
