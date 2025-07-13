@@ -10,7 +10,8 @@ use App\Http\Controllers\CategoryController;
 Route::post('/login', [AuthController::class, 'login'])->middleware(CheckApiKey::class);
 Route::post('/login-usuarios', [AuthController::class, 'loginUsuarios'])->middleware(CheckApiKey::class);
 
-Route::get('/categories', [CategoryController::class, 'index']);
+Route::get('/categories', [CategoryController::class, 'index'])
+    ->middleware(TokenAuth::class);
 
 Route::middleware(TokenAuth::class)->group(function () {
     Route::get('/user', function (Request $request) {
