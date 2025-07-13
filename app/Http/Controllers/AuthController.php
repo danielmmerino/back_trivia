@@ -3,41 +3,53 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\UserSession;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
+use Carbon\Carbon;
 
 class AuthController extends Controller
 {
-public function login(Request $request)
-{
-    try {
-        $credentials = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required'],
-        ]);
+    public function login(Request $request)
+    {
+        try {
+            $credentials = $request->validate([
+                'email' => ['required', 'email'],
+                'password' => ['required'],
+            ]);
 
-        // Buscar por el campo correcto
-        $user = \App\Models\User::where('correo_usuario', $credentials['email'])->first();
+            $user = User::where('correo_usuario', $credentials['email'])->first();
 
-        if (! $user) {
-            return response()->json(['message' => 'Usuario no encontrado'], 404);
+            if (! $user) {
+                return response()->json(['message' => 'Usuario no encontrado'], 404);
+            }
+
+            if (! Hash::check($credentials['password'], $user->clave)) {
+                return response()->json(['message' => 'Contraseña incorrecta'], 401);
+            }
+
+            $payload = [
+                'sub' => $user->uuid,
+                'iat' => time(),
+                'exp' => time() + 3600,
+            ];
+            $token = JWT::encode($payload, env('APP_KEY'), 'HS256');
+
+            UserSession::create([
+                'uuid_usuario' => $user->uuid,
+                'token' => $token,
+                'fecha_creacion' => Carbon::now(),
+                'estado' => 1,
+            ]);
+
+            return response()->json(['token' => $token]);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
         }
-
-        // Comparar correctamente con Hash
-        if (! \Illuminate\Support\Facades\Hash::check($credentials['password'], $user->clave)) {
-            return response()->json(['message' => 'Contraseña incorrecta'], 401);
-        }
-
-        // Generar token base (puedes mejorar luego con JWT)
-        $hash = hash_hmac('sha256', $user->correo_usuario, env('API_KEY', 'default'));
-        $token = base64_encode($user->uuid . '|' . $hash);
-
-        return response()->json(['token' => $token]);
-    } catch (\Throwable $e) {
-        return response()->json(['error' => $e->getMessage()], 500);
     }
-}
 
     public function loginUsuarios(Request $request)
     {
@@ -59,5 +71,48 @@ public function login(Request $request)
         }
 
         return response()->json((array) $result[0]);
+    }
+
+    public function refreshToken(Request $request)
+    {
+        $token = $request->bearerToken();
+        if (! $token) {
+            return response()->json(['message' => 'Unauthenticated', 'requires_new_token' => true], 401);
+        }
+
+        try {
+            $payload = JWT::decode($token, new Key(env('APP_KEY'), 'HS256'));
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Token expired', 'requires_new_token' => true], 401);
+        }
+
+        $session = UserSession::where('token', $token)->where('estado', 1)->first();
+        if (! $session) {
+            return response()->json(['message' => 'Unauthenticated', 'requires_new_token' => true], 401);
+        }
+
+        $user = User::find($payload->sub);
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated', 'requires_new_token' => true], 401);
+        }
+
+        $session->estado = 0;
+        $session->save();
+
+        $payload = [
+            'sub' => $user->uuid,
+            'iat' => time(),
+            'exp' => time() + 3600,
+        ];
+        $newToken = JWT::encode($payload, env('APP_KEY'), 'HS256');
+
+        UserSession::create([
+            'uuid_usuario' => $user->uuid,
+            'token' => $newToken,
+            'fecha_creacion' => Carbon::now(),
+            'estado' => 1,
+        ]);
+
+        return response()->json(['token' => $newToken]);
     }
 }
