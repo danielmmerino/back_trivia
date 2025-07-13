@@ -13,6 +13,7 @@ use App\Http\Controllers\QuestionController;
 
 Route::post('/login', [AuthController::class, 'login'])->middleware(CheckApiKey::class);
 Route::post('/login-usuarios', [AuthController::class, 'loginUsuarios'])->middleware(CheckApiKey::class);
+Route::post('/social_login', [AuthController::class, 'socialLogin'])->middleware(CheckApiKey::class);
 Route::post('/refresh-token', [AuthController::class, 'refreshToken']);
 
 Route::get('/categories', [CategoryController::class, 'index'])
