@@ -7,6 +7,7 @@ use App\Http\Middleware\TokenAuth;
 use App\Http\Middleware\CheckApiKey;
 
 Route::post('/login', [AuthController::class, 'login'])->middleware(CheckApiKey::class);
+Route::post('/login-usuarios', [AuthController::class, 'loginUsuarios'])->middleware(CheckApiKey::class);
 
 Route::middleware(TokenAuth::class)->group(function () {
     Route::get('/user', function (Request $request) {
