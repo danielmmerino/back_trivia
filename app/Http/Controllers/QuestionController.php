@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use App\Models\UserSession;
+use App\Models\MatchQuestion;
 
 class QuestionController extends Controller
 {
@@ -26,6 +28,19 @@ class QuestionController extends Controller
                 $data['limit'],
             ]
         );
+
+        $token = $request->bearerToken();
+        $session = UserSession::where('token', $token)->where('estado', 1)->first();
+        if ($session) {
+            foreach ($preguntas as $preg) {
+                MatchQuestion::create([
+                    'id_sesion' => $session->id,
+                    'id_pregunta' => $preg->id,
+                    'esCorrecto' => null,
+                    'fecha_creacion' => now(),
+                ]);
+            }
+        }
 
         $resultado = [];
         foreach ($preguntas as $pregunta) {
