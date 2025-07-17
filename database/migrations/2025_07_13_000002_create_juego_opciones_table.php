@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('juego_opciones', function (Blueprint $table) {
             $table->id();
             $table->foreignId('id_pregunta');
-            $table->text('descripcion');
+            $table->string('descripcion', 255);
             $table->boolean('esCorrecto');
             $table->boolean('estado')->default(1);
             $table->dateTime('fecha_creacion');

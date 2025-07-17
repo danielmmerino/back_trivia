@@ -82,11 +82,11 @@ class QuestionController extends Controller
 
             $validated = validator(['questions' => $questions], [
                 'questions' => 'required|array',
-                'questions.*.pregunta' => 'required|string',
+                'questions.*.pregunta' => 'required|string|max:255',
                 'questions.*.id_categoria' => 'required|integer',
                 'questions.*.id_dificultad' => 'required|integer',
                 'questions.*.opciones' => 'required|array|size:4',
-                'questions.*.opciones.*.opcion' => 'required|string',
+                'questions.*.opciones.*.opcion' => 'required|string|max:255',
                 'questions.*.opciones.*.esCorrecta' => 'required|in:true,false',
             ])->validate()['questions'];
 
