@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class QuestionController extends Controller
 {
@@ -56,51 +57,57 @@ class QuestionController extends Controller
 
     public function store(Request $request)
     {
-        $questions = $request->all();
+        try {
+            $questions = $request->all();
 
-        // Allow sending a single object instead of an array
-        if (isset($questions['pregunta'])) {
-            $questions = [$questions];
-        }
-
-        $validated = validator(['questions' => $questions], [
-            'questions' => 'required|array',
-            'questions.*.pregunta' => 'required|string',
-            'questions.*.id_categoria' => 'required|integer',
-            'questions.*.id_dificultad' => 'required|integer',
-            'questions.*.opciones' => 'required|array|size:4',
-            'questions.*.opciones.*.opcion' => 'required|string',
-            'questions.*.opciones.*.esCorrecta' => 'required|in:true,false',
-        ])->validate()['questions'];
-
-        foreach ($validated as $question) {
-            $hasCorrect = collect($question['opciones'])->contains(function ($op) {
-                return $op['esCorrecta'] === 'true';
-            });
-
-            if (! $hasCorrect) {
-                return response()->json(['message' => 'Debe existir al menos una respuesta correcta'], 400);
+            // Allow sending a single object instead of an array
+            if (isset($questions['pregunta'])) {
+                $questions = [$questions];
             }
 
-            $preguntaId = DB::table('juego_preguntas')->insertGetId([
-                'categoria' => $question['id_categoria'],
-                'descripcion' => $question['pregunta'],
-                'id_dificultad' => $question['id_dificultad'],
-                'estado' => 1,
-                'fecha_creacion' => now(),
-            ]);
+            $validated = validator(['questions' => $questions], [
+                'questions' => 'required|array',
+                'questions.*.pregunta' => 'required|string',
+                'questions.*.id_categoria' => 'required|integer',
+                'questions.*.id_dificultad' => 'required|integer',
+                'questions.*.opciones' => 'required|array|size:4',
+                'questions.*.opciones.*.opcion' => 'required|string',
+                'questions.*.opciones.*.esCorrecta' => 'required|in:true,false',
+            ])->validate()['questions'];
 
-            foreach ($question['opciones'] as $opcion) {
-                DB::table('juego_opciones')->insert([
-                    'id_pregunta' => $preguntaId,
-                    'descripcion' => $opcion['opcion'],
-                    'esCorrecto' => $opcion['esCorrecta'] === 'true',
+            foreach ($validated as $question) {
+                $hasCorrect = collect($question['opciones'])->contains(function ($op) {
+                    return $op['esCorrecta'] === 'true';
+                });
+
+                if (! $hasCorrect) {
+                    return response()->json(['message' => 'Debe existir al menos una respuesta correcta'], 400);
+                }
+
+                $preguntaId = DB::table('juego_preguntas')->insertGetId([
+                    'categoria' => $question['id_categoria'],
+                    'descripcion' => $question['pregunta'],
+                    'id_dificultad' => $question['id_dificultad'],
                     'estado' => 1,
                     'fecha_creacion' => now(),
                 ]);
-            }
-        }
 
-        return response()->json(['message' => 'Preguntas creadas'], 201);
+                foreach ($question['opciones'] as $opcion) {
+                    DB::table('juego_opciones')->insert([
+                        'id_pregunta' => $preguntaId,
+                        'descripcion' => $opcion['opcion'],
+                        'esCorrecto' => $opcion['esCorrecta'] === 'true',
+                        'estado' => 1,
+                        'fecha_creacion' => now(),
+                    ]);
+                }
+            }
+
+            return response()->json(['message' => 'Preguntas creadas'], 201);
+        } catch (ValidationException $e) {
+            return response()->json(['errors' => $e->errors()], 422);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 }
