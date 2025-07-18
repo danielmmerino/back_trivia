@@ -22,21 +22,19 @@ class QuestionController extends Controller
             $token = $request->bearerToken();
             $session = UserSession::where('token', $token)->where('estado', 1)->first();
 
-            $preguntas = DB::select(
-                'select id, categoria, descripcion, id_dificultad, estado, fecha_creacion
-                from juego_preguntas
-                where categoria = ? and estado = 1 and id_dificultad = ?
-                and id not in (
-                    select id_pregunta from partida_preguntas where id_sesion = ?
-                )
-                order by id_dificultad limit ?;',
-                [
-                    $data['id_categoria'],
-                    $data['id_dificultad'],
-                    $session?->id ?? 0,
-                    $data['limit'],
-                ]
-            );
+            $preguntas = DB::table('juego_preguntas')
+                ->select('id', 'categoria', 'descripcion', 'id_dificultad', 'estado', 'fecha_creacion')
+                ->where('categoria', $data['id_categoria'])
+                ->where('estado', 1)
+                ->where('id_dificultad', $data['id_dificultad'])
+                ->whereNotIn('id', function ($query) use ($session) {
+                    $query->select('id_pregunta')
+                        ->from('partida_preguntas')
+                        ->where('id_sesion', $session?->id ?? 0);
+                })
+                ->inRandomOrder()
+                ->limit($data['limit'])
+                ->get();
             if ($session) {
                 foreach ($preguntas as $preg) {
                     MatchQuestion::create([
