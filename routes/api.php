@@ -9,6 +9,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\LevelController;
 
 use App\Http\Controllers\QuestionController;
+use App\Http\Controllers\ResultController;
 
 
 Route::post('/login', [AuthController::class, 'login'])->middleware(CheckApiKey::class);
@@ -25,6 +26,9 @@ Route::post('/preguntas', [QuestionController::class, 'index'])
     ->middleware(TokenAuth::class);
 
 Route::post('/crear_pregunta', [QuestionController::class, 'store'])
+    ->middleware(TokenAuth::class);
+
+Route::post('/publicar_resultados', [ResultController::class, 'store'])
     ->middleware(TokenAuth::class);
 
 Route::middleware(TokenAuth::class)->group(function () {
