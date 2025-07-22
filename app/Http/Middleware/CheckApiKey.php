@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Support\Facades\Log;
 
 class CheckApiKey
 {
@@ -13,9 +14,21 @@ class CheckApiKey
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $key = $request->header('x-api-key');
-        if (! $key || $key !== env('API_KEY')) {
-            return response()->json(['message' => 'Invalid API key'], 401);
+        $providedKey = $request->header('x-api-key');
+        $expectedKey = env('API_KEY');
+        //$expectedKey= config('api.key');
+
+        // Para debug temporal (puedes comentar luego)
+        // Log::info('API Key Provided: ' . $providedKey);
+        // Log::info('API Key Expected: ' . $expectedKey);
+
+        // Verificación
+        if (!$providedKey || $providedKey !== $expectedKey) {
+            return response()->json([
+                'message' => 'Invalid API key',
+                'provided' => $providedKey,
+                //'expected' => $expectedKey, // ⚠️ Quita esto en producción
+            ], 401);
         }
 
         return $next($request);
